@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/atlas-banner.webp" alt="Atlas Infrastructure Intelligence" width="100%">
+  <img src="assets/atlas-banner.png" alt="Atlas Infrastructure Intelligence" width="100%">
 </p>
 
 # Atlas
