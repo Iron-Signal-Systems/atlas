@@ -8,13 +8,32 @@
 
 > **Truth first. Built for operators.**
 
-Atlas is a source-backed infrastructure intelligence platform designed to turn scattered infrastructure information into usable organizational knowledge.
+Atlas is a read-focused infrastructure intelligence platform designed to reconstruct how a network is actually built, connected, controlled, and changing.
 
-Infrastructure teams usually already have the information they need. The problem is that the information is spread across switches, routers, firewalls, wireless systems, monitoring tools, logging platforms, security tools, identity systems, diagrams, spreadsheets, tickets, change records, vendor interfaces, and the memory of experienced engineers.
+It collects approved information from infrastructure systems, preserves where that information came from, normalizes and correlates the facts, builds an infrastructure model, and uses that model to answer operational questions and generate current network diagrams.
 
-Atlas exists to correlate that information once, preserve where it came from, and answer the question without forcing the user to manually reconstruct the environment every time.
+Atlas does **not** ingest network diagrams to determine network topology.
 
-> **Do not make the user browse the network. Reconstruct the network and answer the question.**
+Atlas generates diagrams from the same infrastructure model used to answer questions.
+
+```text
+Infrastructure Sources
+        ↓
+      Collect
+        ↓
+Preserve Source Identity
+        ↓
+     Normalize
+        ↓
+     Correlate
+        ↓
+       Model
+      /     \
+     /       \
+ Answers    Diagrams
+```
+
+> **Do not make the operator browse the network. Reconstruct the network and answer the question.**
 
 ---
 
@@ -22,118 +41,246 @@ Atlas exists to correlate that information once, preserve where it came from, an
 
 **Pre-alpha. Not production ready.**
 
-This repository is a clean restart of Atlas after the earlier implementation accumulated more project ceremony and process structure than the product needed.
+This repository is a clean restart of Atlas.
 
-The previous implementation is retained at [Iron-Signal-Systems/old-atlas](https://github.com/Iron-Signal-Systems/old-atlas) as historical reference.
+The previous implementation accumulated more architecture, project structure, abstractions, tooling, and process than the product required at its current stage.
 
-Useful code and design work may be brought forward selectively. Nothing is migrated simply because it existed before.
+That implementation is retained at:
 
-The current direction is to build the simplest correct implementation that answers real infrastructure questions while preserving strong source lineage, historical integrity, least privilege, and explicit uncertainty.
+[Iron-Signal-Systems/old-atlas](https://github.com/Iron-Signal-Systems/old-atlas)
 
-A controlled pilot is targeted approximately **24–36 months** from this restart, subject to engineering and validation results.
+The old repository is historical reference material.
+
+Useful code, tests, parsers, SQL, validation cases, and design ideas may be brought forward selectively.
+
+Nothing is migrated simply because it existed before.
+
+The current Atlas implementation follows a simpler rule:
+
+> **Build the simplest correct thing that answers a real infrastructure question.**
+
+Complexity is allowed when the infrastructure problem requires it.
+
+Complexity must earn its place.
+
+A controlled pilot is currently targeted approximately **24–36 months** from this restart, subject to engineering and validation results.
 
 ---
 
-## What Atlas Is
+# What Atlas Is
 
 Atlas is an **infrastructure intelligence platform**.
 
-It is intended to understand how infrastructure is actually constructed, connected, controlled, dependent, and changing.
+It is intended to understand relationships across network infrastructure so operators do not have to repeatedly reconstruct those relationships by hand.
 
-Atlas combines approved source information from multiple systems and vendors into a source-traceable model that can support:
+Atlas may eventually understand information such as:
 
-- infrastructure identity;
-- topology reconstruction;
-- switching and VLAN relationships;
-- routing and path analysis;
-- firewall and ACL context;
-- NAT, VPN, and SD-WAN relationships;
-- reachability analysis;
-- dependency and blast-radius analysis;
-- identity and privilege context from specialist systems;
-- historical comparison;
-- change-impact analysis;
-- generated diagrams and living documentation;
-- role-appropriate explanations; and
-- governed export of useful context to external systems.
+* devices;
+* interfaces;
+* VLANs;
+* trunks;
+* port channels;
+* neighbors;
+* MAC and ARP observations;
+* IP addresses and subnets;
+* routing domains;
+* routes and next hops;
+* firewall policies;
+* ACLs;
+* NAT;
+* VPNs;
+* SD-WAN;
+* wireless infrastructure;
+* sites and physical placement;
+* dependencies;
+* historical changes;
+* identity relationships from specialist systems; and
+* other infrastructure facts required to answer useful questions.
 
-Atlas is designed to answer questions, not merely display normalized records.
+These capabilities are added when real Atlas questions require them.
 
----
-
-## The Problem Atlas Solves
-
-A senior network administrator or engineer can often answer difficult infrastructure questions manually.
-
-The problem is the work required to get there.
-
-One question may require logging into several devices, reading configurations, checking routing tables, tracing VLANs, reviewing firewall policies, looking at monitoring data, consulting diagrams, checking old tickets, asking another administrator what changed, and relying on memory.
-
-Atlas is intended to compress that work.
-
-Examples include:
-
-- Where is this IP address?
-- Which site, switch, interface, VLAN, subnet, or routing domain contains it?
-- Which gateway and route are used?
-- Why did that route win?
-- Can source A reach destination B on protocol or port X?
-- Which firewall policy, ACL, NAT rule, VPN, or SD-WAN decision affects the path?
-- Is the return path valid?
-- What depends on this switch, circuit, route, firewall, VLAN, tunnel, or site?
-- Does the supposed redundant path actually carry everything the service requires?
-- What changed before this outage began?
-- What would a proposed change affect?
-- What is the risk of making the change?
-- What is the risk of delaying or denying it?
-- What does BloodHound say about an identity path, and does the network actually support the required reachability?
-- Which sources support the answer?
-- What is stale, incomplete, inferred, unknown, or conflicting?
-
-> **What takes an experienced engineer hours to reconstruct manually should, when Atlas has the necessary source information, be answerable in seconds or minutes.**
+Atlas does not need to understand every command, feature, protocol, or vendor capability simply because the information exists.
 
 ---
 
-## A Practical Example
+# The Problem Atlas Solves
 
-Assume a fiber cut takes down a camera network at a building that was believed to have a redundant path.
+Experienced network administrators and engineers can usually answer difficult infrastructure questions.
 
-The physical failure may be obvious. The useful question is:
+The problem is the amount of work required to reach the answer.
+
+A single troubleshooting question may require:
+
+* connecting to multiple switches or routers;
+* checking interface configuration;
+* tracing VLANs;
+* reviewing spanning tree;
+* checking MAC and ARP tables;
+* examining routing tables;
+* inspecting firewall policies;
+* checking monitoring systems;
+* comparing old documentation;
+* looking through tickets or change records; and
+* relying on the memory of experienced staff.
+
+Atlas is intended to perform that correlation once and make the result reusable.
+
+Questions Atlas should eventually answer include:
+
+* Where is this IP address?
+* Which switch and interface is it connected to?
+* Which VLAN contains it?
+* Which subnet and gateway apply?
+* Which route would traffic use?
+* Why was that route selected?
+* Can source A reach destination B on a specific protocol or port?
+* Which firewall policy or ACL affects that path?
+* Is NAT involved?
+* Is the return path valid?
+* What depends on this switch?
+* What depends on this interface?
+* What depends on this circuit?
+* What depends on this VLAN?
+* What happens if this device or site becomes unavailable?
+* Does a supposed redundant path actually support the required service?
+* What changed before an outage began?
+* Which source observations support an answer?
+* Which parts of the answer are incomplete, stale, inferred, conflicting, or unknown?
+
+> **What takes an experienced engineer hours to reconstruct manually should, when Atlas has the required information, be answerable in seconds or minutes.**
+
+---
+
+# Atlas Generates Network Diagrams
+
+Network diagrams are an **output of Atlas**, not an authoritative topology input.
+
+Atlas reconstructs topology from approved infrastructure observations and generates diagrams from the resulting model.
+
+```text
+Cisco
+FortiGate
+Other approved infrastructure sources
+        ↓
+      Atlas
+        ↓
+Infrastructure Model
+        ↓
+Generated Network Diagram
+```
+
+Atlas-generated diagrams may eventually show information such as:
+
+* sites;
+* network devices;
+* device-to-device links;
+* switch relationships;
+* trunks;
+* port channels;
+* VLAN propagation;
+* routing relationships;
+* WAN connections;
+* firewall boundaries;
+* wireless infrastructure;
+* circuit dependencies;
+* endpoints; and
+* other relationships represented by the Atlas model.
+
+Generated diagrams should reflect the same knowledge Atlas uses to answer operational questions.
+
+A diagram must not become a second independently maintained source of network truth.
+
+If Atlas knowledge changes, the generated diagram should change with it.
+
+If Atlas does not know something, the diagram should not invent it.
+
+---
+
+# Diagrams Are Not Topology Sources
+
+Atlas does not determine network truth from an existing Draw.io, Visio, PDF, image, or manually maintained network diagram.
+
+Human-created diagrams may be useful to people for planning or reference, but they are not authoritative Atlas topology inputs.
+
+Atlas should not reason:
+
+```text
+diagram says switch A connects to switch B
+        ↓
+therefore the connection exists
+```
+
+Instead Atlas should establish the relationship from approved infrastructure information.
+
+For example:
+
+```text
+Cisco CDP / LLDP
+interface configuration
+port-channel state
+VLAN configuration
+other relevant observations
+        ↓
+Atlas correlation
+        ↓
+switch A ↔ switch B
+```
+
+Diagram formats such as Draw.io may eventually be supported as **publication or export formats**.
+
+---
+
+# Practical Example
+
+Assume a fiber failure takes down a camera network at a building that was believed to have a redundant path.
+
+The obvious fact may be:
+
+```text
+fiber failed
+```
+
+The useful question is:
 
 > **Why did this fiber failure take down the camera VLAN if the site was supposed to be redundant?**
 
-The real cause may have been introduced months earlier:
+The actual problem may have been introduced months earlier:
 
-- a new switch was installed;
-- the alternate site path changed;
-- the camera VLAN was never extended across the new path;
-- the spreadsheet or diagram was not updated;
-- the primary path continued working, hiding the missing dependency; and
-- the problem became visible only when the fiber failed.
+* a switch was replaced;
+* the alternate topology changed;
+* the camera VLAN was never extended across the alternate path;
+* normal traffic continued using the primary link;
+* the missing dependency remained hidden; and
+* the failure exposed the problem.
 
-Atlas is intended to reconstruct that environment and explain:
+Atlas should eventually be able to explain:
 
-- which devices and links participate;
-- which VLANs traverse each link;
-- which path is primary;
-- whether the alternate path actually supports the affected service;
-- which routes and controls participate;
-- when the dependency changed;
-- what other services share the same dependency; and
-- which source observations support the conclusion.
+* which switches participate;
+* which links connect them;
+* which VLANs cross those links;
+* which path normally carries the traffic;
+* whether the alternate path supports the affected VLAN;
+* which routing and firewall controls participate;
+* when the relationship changed;
+* what else depends on the same path; and
+* which source observations support the conclusion.
 
-The objective is not a prettier diagram.
+The objective is not simply to create a prettier network diagram.
 
-The objective is to make hidden dependencies visible before failure and understandable immediately after failure.
+The objective is to make network relationships understandable.
 
 ---
 
-## Core Operating Model
+# Core Operating Model
+
+Atlas follows a simple conceptual flow:
 
 ```text
 COLLECT
    ↓
 PRESERVE SOURCE IDENTITY
+   ↓
+PARSE
    ↓
 NORMALIZE
    ↓
@@ -146,604 +293,786 @@ REASON
 ANSWER / MAP / COMPARE / EXPLAIN
 ```
 
-The system may become sophisticated because infrastructure is sophisticated.
+This is a **data-flow model**, not a requirement that every stage become a separate service, framework, interface, package, or executable.
 
-Individual components should remain understandable, bounded, testable, and replaceable.
+Several stages may initially exist in the same small implementation.
+
+Architecture should be extracted when working code demonstrates that the separation is useful.
 
 ---
 
-## Read-Only by Design
+# Current Implementation Focus
+
+The current implementation focus is **Cisco source parsing**.
+
+The Cisco parser is being rebuilt carefully rather than copied wholesale from the previous Atlas implementation.
+
+The objective is not to parse every Cisco command.
+
+The objective is to faithfully collect the Cisco facts Atlas needs to answer useful infrastructure questions.
+
+Early Cisco work may include information such as:
+
+* device identity;
+* platform information;
+* interfaces;
+* interface addresses;
+* interface state;
+* VLANs;
+* trunks;
+* port channels;
+* CDP;
+* LLDP;
+* MAC observations;
+* ARP observations;
+* spanning tree;
+* routes;
+* VRFs;
+* ACL-related information; and
+* other facts required by current Atlas questions.
+
+Features are added because Atlas needs the information.
+
+They are not added simply because Cisco exposes the command.
+
+---
+
+# Parser Requirements
+
+Source parsers are a critical trust boundary.
+
+A parser should preserve what the source actually reported before Atlas attempts higher-level interpretation.
+
+The initial rule is:
+
+> **Parse faithfully first. Correlate later. Derive last.**
+
+A parser should not quietly turn assumptions into source facts.
+
+For example:
+
+```text
+Source:
+Interface Gi1/0/24 allows VLANs 10,20,30
+
+Parser:
+records VLANs 10,20,30 as configured on the trunk
+```
+
+The parser should not automatically claim:
+
+```text
+VLAN 20 is currently carrying traffic
+```
+
+unless a source observation supports that conclusion.
+
+Parser behavior should be:
+
+* bounded;
+* deterministic where practical;
+* testable;
+* explicit about unsupported input;
+* explicit about malformed input;
+* conservative when information is incomplete; and
+* resistant to hostile or unexpectedly large source content.
+
+Unknown input should not automatically crash the entire collection.
+
+Unsupported input should be identifiable so support can be added deliberately.
+
+---
+
+# Source-Backed Information
+
+Atlas should preserve enough information to establish where important facts came from.
+
+Depending on the source and record type, this may include:
+
+* source system;
+* source device;
+* source command or collection operation;
+* collection timestamp;
+* parser identity;
+* parser version;
+* source identifiers;
+* source values;
+* cryptographic source identity where useful;
+* direct observations;
+* derived values;
+* assumptions;
+* conflicting information; and
+* source freshness.
+
+Atlas should distinguish between different kinds of knowledge.
+
+Initial state vocabulary may include:
+
+* `CONFIGURED`
+* `OBSERVED`
+* `CALCULATED`
+* `INFERRED`
+* `UNKNOWN`
+* `CONFLICTING`
+
+A configuration proves configuration.
+
+It does not automatically prove current operational state.
+
+A route being configured does not prove that it is selected.
+
+A VLAN being permitted on a trunk does not prove that traffic is currently using it.
+
+A Layer-3 path existing does not prove that a firewall permits the service.
+
+A missing observation does not automatically prove absence.
+
+> **If Atlas cannot establish something, Atlas should say that it cannot establish it.**
+
+---
+
+# Infrastructure Model
+
+Atlas should model infrastructure relationships rather than reproduce vendor navigation structures.
+
+Vendor-specific information remains available for traceability, but vendor syntax should not become the canonical Atlas model.
+
+Potential model areas include the following.
+
+## Device and placement
+
+* organizations;
+* sites;
+* buildings;
+* rooms;
+* racks;
+* devices;
+* chassis;
+* stacks;
+* logical devices; and
+* components.
+
+## Layer 2
+
+* interfaces;
+* VLANs;
+* trunks;
+* native VLANs;
+* allowed VLANs;
+* port channels;
+* neighbors;
+* MAC observations;
+* spanning-tree relationships; and
+* endpoint attachment.
+
+## Layer 3
+
+* IP addresses;
+* prefixes;
+* subnets;
+* gateways;
+* VRFs;
+* VDOMs;
+* routing domains;
+* routes; and
+* next hops.
+
+## Network controls
+
+* firewall zones;
+* firewall policies;
+* ACLs;
+* address objects;
+* service objects;
+* NAT;
+* VIPs;
+* VPNs;
+* SD-WAN; and
+* management boundaries.
+
+These model areas are not instructions to create all corresponding code immediately.
+
+The model grows as working Atlas capabilities require it.
+
+---
+
+# Read-Only by Design
 
 Atlas is designed around **read-only collection and least privilege**.
 
-The normal operating model is:
+The normal Atlas operating direction is:
 
 ```text
-read → ingest → normalize → correlate → calculate → explain → compare → recommend → export → validate
+read
+  ↓
+collect
+  ↓
+parse
+  ↓
+normalize
+  ↓
+correlate
+  ↓
+reason
+  ↓
+answer
 ```
 
-Atlas does not need administrative control over infrastructure simply to understand it.
+Atlas does not require administrative control over infrastructure simply to understand it.
 
-Collectors should receive only the authority necessary to retrieve their approved source information.
+Collectors should receive only the authority necessary to retrieve approved source information.
 
-Atlas does not silently modify infrastructure.
+Atlas should not silently modify infrastructure.
 
-Any future write or provisioning capability would require a separately engineered authority boundary with explicit approval, attribution, bounded scope, least privilege, validation, and recovery behavior.
+Any future write, provisioning, or remediation capability would require a separately engineered authority boundary.
 
-Read-only operation is not a missing feature. It is part of the trust model.
+That capability would need explicit authorization, attribution, bounded scope, validation, and recovery behavior.
+
+Read-only operation is not a missing feature.
+
+It is part of the Atlas trust model.
 
 ---
 
-## Atlas Is Not a Replacement for Specialist Tools
+# Specialist Tools Remain Specialists
 
-Atlas is not intended to replace tools that already perform specialized functions well.
+Atlas is not intended to replace systems that already perform specialized functions well.
 
-- **Zabbix** and similar systems remain responsible for monitoring, alerting, graphing, escalation, maintenance, and availability.
-- **Graylog** and similar systems remain responsible for centralized logging, indexing, retention, and search.
-- **Security Onion, CrowdStrike, and other security platforms** remain responsible for their detection, packet, endpoint, hunting, and investigation functions.
-- **BloodHound** remains responsible for identity and privilege attack-graph analysis.
-- **Cisco, Fortinet, and other infrastructure platforms** remain responsible for operating and enforcing infrastructure state.
-- **Draw.io** and similar tools remain useful human-editable publication and documentation formats.
+Examples include:
 
-Atlas uses approved information from specialist systems where useful, adds infrastructure context, correlates relationships across domains, and may later publish selected context back to external tools.
+* Zabbix and similar monitoring systems;
+* Graylog and similar logging platforms;
+* Security Onion and other network-security platforms;
+* CrowdStrike and other endpoint-security products;
+* BloodHound for identity and privilege relationship analysis;
+* Cisco infrastructure platforms;
+* Fortinet infrastructure platforms; and
+* other specialist operational systems.
+
+Atlas may consume approved information from specialist systems where that information contributes to infrastructure understanding.
+
+Atlas adds correlation across those domains.
 
 > **Specialist tools remain specialists. Atlas fills the gaps between them.**
 
 ---
 
-## Source-Backed Answers
+# Future Source Work
 
-Atlas should never present a calculated conclusion as unexplained magic.
+Cisco is the current source implementation.
 
-Material answers should retain enough information to determine:
+Other sources may be added when Atlas requires them.
 
-- where the source information came from;
-- when it was collected or imported;
-- what source content was processed;
-- the cryptographic identity of that source content where applicable;
-- which parser or analyzer interpreted it;
-- what was directly observed;
-- what was configured;
-- what Atlas calculated;
-- what Atlas inferred;
-- what assumptions were required;
-- what conflicts exist;
-- what is incomplete;
-- what is stale; and
-- what Atlas cannot establish.
+Potential future sources include:
 
-Initial state vocabulary includes:
+## FortiGate
 
-- `CONFIGURED`
-- `OBSERVED`
-- `CALCULATED`
-- `INFERRED`
-- `UNKNOWN`
-- `CONFLICTING`
+Useful information may eventually include:
 
-A configuration proves configuration. It does not automatically prove live operational state.
+* device identity;
+* interfaces;
+* VLANs;
+* zones;
+* VDOMs;
+* firewall policies;
+* objects;
+* NAT;
+* VIPs;
+* routing;
+* VPNs;
+* SD-WAN;
+* HA state; and
+* management-plane controls.
 
-A route being configured does not prove it is currently selected.
+## BloodHound
 
-A Layer-3 path existing does not prove a firewall permits the service.
+BloodHound may eventually provide identity and privilege context.
 
-A BloodHound identity relationship existing does not prove the required network path exists.
-
-A missing observation does not automatically prove absence.
-
-> **If Atlas cannot establish the truth, it should report the uncertainty rather than invent certainty.**
-
----
-
-## Infrastructure Model
-
-Atlas will build its model from source-backed relationships rather than vendor navigation structures.
-
-Expected model areas include:
-
-### Physical and organizational placement
-
-- organizations, sites, buildings, rooms, and racks;
-- devices, chassis, stacks, logical devices, and components.
-
-### Layer 2
-
-- interfaces and access ports;
-- VLANs and trunks;
-- native and allowed VLANs;
-- port channels;
-- neighbors;
-- MAC observations and endpoint attachment;
-- spanning-tree relationships.
-
-### Layer 3
-
-- IP addresses and prefixes;
-- subnets and gateways;
-- VRFs, VDOMs, and routing domains;
-- routes, next hops, and path selection.
-
-### Controls and boundaries
-
-- firewall zones and policies;
-- ACLs;
-- address and service objects;
-- NAT and VIPs;
-- VPN and SD-WAN;
-- management-plane exposure;
-- trust boundaries.
-
-### Supporting context
-
-- identity references;
-- privilege-path references;
-- wireless relationships;
-- monitoring context;
-- documentation;
-- changes;
-- source freshness;
-- dependencies;
-- conflicts; and
-- historical observations.
-
-Vendor-specific values remain available for traceability, but vendor syntax does not become the Atlas canonical model.
-
----
-
-## Initial Source Workstreams
-
-Source support is developed as **parallel workstreams**, not as giant vendor phases.
-
-A source is expanded when Atlas needs additional facts to answer real questions.
-
-### Cisco
-
-Initial Cisco work is expected to cover useful information such as device identity, interfaces, VLANs, trunks, port channels, CDP/LLDP, spanning tree, MAC/ARP, routing, VRFs, ACL context, stacks, wireless controllers, APs, WLANs, and selected diagnostics.
-
-Atlas does not need to parse every command Cisco exposes simply because it exists.
-
-### FortiGate
-
-Initial FortiGate work is expected to cover platform identity, interfaces, VLANs, zones, VDOMs, objects, firewall policies, routing, NAT, VIPs, VPNs, SD-WAN, HA context, management exposure, local-in controls, and selected runtime state.
-
-### BloodHound
-
-BloodHound source handling should preserve BloodHound semantics faithfully.
-
-Atlas may ingest approved bounded BloodHound output while retaining exact source identifiers, node identity, relationship identity, relationship type, source timestamps, supported and unsupported values, unresolved endpoints, lineage, and BloodHound-owned path references where applicable.
-
-> **BloodHound said X. Atlas stores X. Atlas does not reinterpret X during ingest.**
-
-Correlation comes later.
-
-### Diagrams and documentation
-
-Draw.io and other approved documentation may be used as supporting source material.
-
-Human-maintained documentation does not automatically override more current infrastructure observations.
-
----
-
-## BloodHound and Network Correlation
-
-BloodHound and Atlas answer different parts of a larger question.
+Atlas should preserve BloodHound semantics rather than reinterpret them during source collection.
 
 ```text
-BloodHound
-identity / privilege relationship
-          ↓
-        Atlas
-asset correlation
-          ↓
-network placement
-          ↓
-routing / firewall / service reachability
-          ↓
-combined explanation
+BloodHound says X
+        ↓
+Atlas records X
+        ↓
+later correlation
 ```
 
-Possible outcomes include:
+Identity relationships and network reachability are different facts.
 
-```text
-Identity capability: YES
-Network capability: YES
-Result: combined path supported by available observations
-```
+Atlas should not collapse them into one unsupported conclusion.
 
-```text
-Identity capability: YES
-Network capability: NO
-Result: identity relationship exists, but the required network path is not currently supported
-```
+## Other Sources
 
-```text
-Identity capability: UNKNOWN
-Network capability: YES
-Result: network path exists; identity capability cannot be established from available source information
-```
+Additional infrastructure, monitoring, security, wireless, asset, or operational sources may be supported when they provide facts needed to answer real Atlas questions.
 
-Atlas should preserve the distinction instead of collapsing separate facts into one conclusion.
+There is no requirement to create a generic plugin framework before those sources exist.
 
 ---
 
-## Topology Mapping and Living Documentation
+# Dependency Analysis
 
-Atlas diagrams should be generated from the same model used to answer questions.
+Network topology is only part of the problem.
 
-The mapping direction is expected to grow approximately in this order:
+Atlas should eventually understand dependencies.
 
-1. site topology;
-2. site-to-site connectivity;
-3. switch-to-switch relationships;
-4. trunks and port channels;
-5. VLAN propagation;
-6. Layer-3 paths;
-7. firewall boundaries;
-8. WAN and circuit dependencies;
-9. wireless infrastructure;
-10. detailed switch-port and endpoint attachment.
+Useful questions may include:
 
-Generated diagrams should visibly distinguish observed, calculated, inferred, stale, unknown, and conflicting relationships.
+* What depends on this switch?
+* What depends on this interface?
+* What depends on this firewall?
+* What depends on this route?
+* What depends on this circuit?
+* What depends on this VLAN?
+* What stops working if this site disappears?
+* Which services share a single point of failure?
+* Does an alternate path actually support everything the service requires?
 
-Atlas-generated diagrams are projections of the current Atlas model. They should not become another independently maintained source of truth.
-
----
-
-## Dependency and Blast-Radius Analysis
-
-Topology alone is not enough.
-
-Atlas is intended to answer questions such as:
-
-- What depends on this switch?
-- What depends on this interface?
-- What depends on this circuit?
-- What depends on this VLAN?
-- What depends on this route?
-- What depends on this firewall policy?
-- What stops working if this site disappears?
-- Which services share a hidden single point of failure?
-- Does an alternate path actually support the affected VLAN, route, policy, and service?
-
-The goal is to expose relationships that may not be obvious from an individual device configuration.
+Dependencies should be derived from Atlas knowledge rather than maintained manually as a second truth source.
 
 ---
 
-## Historical State
+# Historical State
 
-Atlas is designed around additive history.
+Atlas is intended to preserve historical infrastructure knowledge.
 
-New observations do not silently erase older observations.
+New observations should not silently erase older observations.
 
-Corrections, superseding information, changed relationships, and later knowledge are represented as new history.
+This should eventually allow questions such as:
 
-This allows Atlas to eventually answer:
+* What did the network look like before this change?
+* When did this route appear?
+* When did this VLAN stop crossing this trunk?
+* Was this interface active during the outage?
+* What changed between two collections?
+* Did the post-change network match the expected result?
 
-- What did the network look like before this change?
-- When did this dependency first appear?
-- When did this VLAN stop crossing this trunk?
-- Was this route present during the outage?
-- What changed between two observations?
-- Did the post-change environment match the intended result?
+History should remain understandable and attributable.
 
-> **History is additive. New knowledge does not erase old knowledge.**
+> **New knowledge should not silently rewrite old knowledge.**
 
----
-
-## Change Analysis and Decision Support
-
-Atlas should support both the person making a technical change and the person responsible for approving it.
-
-### Operator / engineer view
-
-May include exact devices, interfaces, VLANs, routes, policies, dependencies, calculated paths, before/after state, validation requirements, rollback information, and supporting source observations.
-
-### Leadership / change-authority view
-
-May include the problem, proposed outcome, reason for change, affected services, expected disruption, dependencies, risk of approval, risk of delay or denial, rollback expectations, confidence, and known unknowns.
-
-> **Summarize upward. Expand downward.**
-
-Atlas should reduce both the technical effort required to understand a change and the paperwork required to explain it.
+Implementation of historical storage should remain as simple as possible while preserving this property.
 
 ---
 
-## Organizational Memory
+# PostgreSQL Direction
 
-Infrastructure knowledge often exists in one experienced engineer's memory, an old spreadsheet, a stale diagram, ticket comments, device descriptions, old email, and undocumented assumptions.
+PostgreSQL is the planned persistent Atlas data store.
 
-That works until the person who remembers the environment is unavailable.
+The database design should support:
 
-Atlas is designed to preserve infrastructure relationships and history so another qualified operator can reconstruct the answer without requiring the original engineer to be present.
+* source-backed records;
+* infrastructure relationships;
+* historical observations;
+* correlation;
+* query;
+* generated topology;
+* source identity; and
+* integrity validation where required.
 
-> **Atlas turns scattered infrastructure information into source-backed organizational knowledge.**
+The schema should grow from working data requirements.
 
----
+Atlas should not attempt to design the final database before the required records and relationships have been proven through implementation.
 
-## External Context and Enrichment
-
-Atlas may later exchange selected context with external systems such as Zabbix, Security Onion, CrowdStrike, Graylog, asset systems, documentation platforms, and other approved tools.
-
-Examples may include canonical asset identity, site, switch and port, VLAN, subnet, dependency, network-path context, source freshness, and selected identity correlation.
-
-Atlas publishes **context**, not duplicate detections.
-
-External systems remain responsible for their existing functions.
-
----
-
-## PostgreSQL and Record Integrity Direction
-
-PostgreSQL is the planned authoritative record store.
-
-Authoritative history is intended to be append-only to normal Atlas application and service roles. Normal roles should not receive authority to rewrite historical records through routine application operation.
-
-A separate verification PostgreSQL instance is planned for each Atlas deployment.
-
-That verifier is dedicated to Atlas only and exists to retain the record identities, ordering information, and cryptographic hashes necessary to verify a questioned authoritative Atlas database.
-
-```text
-                Atlas shipper
-                     |
-            canonical record + hash
-                     |
-            +--------+--------+
-            |                 |
-            v                 v
-   Atlas PostgreSQL     Atlas Verify PostgreSQL
-   full record          identity + hash
-   authoritative        verification only
-```
-
-The verifier is not another application database, not an Atlas query store, and not shared with other Iron Signal Systems products.
-
-Compromise of the PostgreSQL superuser or underlying database-host administrator exceeds the local database integrity boundary. Atlas does not claim that software entirely inside a fully compromised administrative boundary can guarantee its own historical integrity.
+Database complexity must earn its place just like application complexity.
 
 ---
 
-## Build Provenance Direction
+# Security Principles
 
-ISS release builds are intended to have a cryptographic identity.
+Atlas should be built with a small and understandable attack surface.
 
-For release builds, Atlas is intended to:
+Initial security priorities include:
 
-- calculate the SHA-256 of the running executable;
-- associate that hash with the running version;
-- record the observed executable identity at startup;
-- compare it with the expected release identity;
-- retain the result as history; and
-- publish release SHA-256 values with signed GitHub release material.
+* read-only collection;
+* least privilege;
+* explicitly scoped collection;
+* untrusted-input handling;
+* bounded parsers;
+* resource limits;
+* timeouts where appropriate;
+* no secrets committed to Git;
+* no unrestricted production source data committed to Git;
+* conservative parsing;
+* explicit uncertainty;
+* clear trust boundaries;
+* tested failure behavior;
+* dependency review;
+* reproducible behavior where practical; and
+* straightforward code that can be reviewed.
 
-This supports both supportability and later compromise investigation.
+Security controls should solve real risks.
 
-A mismatch means the running artifact does not match the expected published build and should be investigated. A mismatch does not automatically prove compromise.
+Security architecture should not become unnecessary framework complexity.
 
----
-
-## Architecture Direction
-
-Atlas should stay simple enough to reason about.
-
-```text
-Cisco -----------\
-FortiGate --------\
-BloodHound --------> bounded source ingestion
-Diagrams ---------/            |
-Other sources ----/             v
-                         source-backed records
-                                  |
-                                  v
-                              PostgreSQL
-                                  |
-                                  v
-                             correlation
-                                  |
-               +------------------+------------------+
-               |                  |                  |
-               v                  v                  v
-            topology          reachability       dependency
-               |                  |                  |
-               +------------------+------------------+
-                                  |
-                                  v
-                       answer / map / compare
-                                  |
-                                  v
-                     operator and leadership views
-```
-
-Shared abstractions should be extracted only after working implementations demonstrate a real common contract.
-
-Atlas should not build frameworks simply because they may become useful someday.
+> **Simple code that can be understood and reviewed is itself a security property.**
 
 ---
 
-## Development Principles
+# Development Principles
 
-### Build the simplest correct thing
+## Build the simplest correct thing
 
 > **Build the simplest correct thing that answers a real Atlas question.**
 
-Complexity is allowed when the problem requires it. Complexity must earn its place.
+Do not build infrastructure for hypothetical future requirements.
 
-### Source truth before interpretation
+---
 
-Preserve native identifiers, values, relationships, timestamps, and source context before deriving higher-level conclusions.
+## Complexity must earn its place
 
-### Parse faithfully first
+Infrastructure is complicated.
+
+The implementation does not need to make that complication worse.
+
+A complex problem should be broken into understandable steps.
+
+---
+
+## Source truth before interpretation
+
+Preserve source facts before deriving conclusions from them.
+
+---
+
+## Parse faithfully first
 
 > **Parse faithfully first. Correlate later. Derive last.**
 
-### Unknown is a valid result
+---
 
-Atlas should prefer an explicit unknown over a confident but unsupported answer.
+## Unknown is valid
 
-### Tests over ceremony
+Atlas should prefer:
 
-Engineering assurance should come primarily from tests, fuzzing, hostile-input validation, deterministic fixtures, resource bounds, failure testing, recovery exercises, security review, adversarial testing, and real-world validation.
+```text
+UNKNOWN
+```
 
-Documentation should exist when it helps build, operate, support, secure, test, or explain the product.
+over a confident answer that cannot be supported.
+
+---
+
+## Tests over ceremony
+
+Engineering confidence should come primarily from:
+
+* unit tests;
+* integration tests where useful;
+* deterministic fixtures;
+* hostile-input testing;
+* fuzzing where valuable;
+* malformed-input testing;
+* resource-bound testing;
+* failure testing;
+* recovery testing;
+* security review; and
+* validation against real authorized infrastructure.
+
+Documentation should exist when it helps build, operate, secure, support, test, or explain Atlas.
 
 Process does not substitute for correctness.
 
-### No speculative frameworks
+---
 
-Do not build a generalized framework until multiple real implementations demonstrate that the abstraction is necessary.
+## No speculative frameworks
 
-### Git already remembers
+Do not create a generalized framework because it might be useful someday.
 
-The active project does not need to preserve obsolete roadmap numbers or process structures merely to remember that they once existed.
+When multiple working implementations demonstrate a real common contract, extract the common behavior.
 
-Git history and `old-atlas` already provide that record.
+Before then, duplication may be cheaper and safer than the wrong abstraction.
 
 ---
 
-## Initial Development Direction
+## Prefer obvious code
 
-The clean Atlas restart will build capability rather than vendor-numbered phases.
+Atlas code should favor:
 
-1. **Core records and ingestion**
-2. **Infrastructure model and correlation**
-3. **Answer engine and reachability**
-4. **Mapping and living documentation**
-5. **Dependency, change, and role views**
-6. **Read-only collection and external context**
-7. **Production hardening and controlled pilot**
+* small functions;
+* clear names;
+* explicit control flow;
+* understandable data structures;
+* minimal hidden behavior;
+* limited package coupling; and
+* straightforward error handling.
 
-Cisco, FortiGate, BloodHound, diagrams, and future source systems advance as workstreams across those capabilities.
-
-The roadmap should change when engineering reality proves that it should change.
+Clever code should require justification.
 
 ---
 
-## Security Principles
+## Keep responsibilities separate
 
-Atlas is expected to follow several non-negotiable security rules:
+Collection, parsing, correlation, storage, and presentation are different responsibilities.
 
-- collectors are read-only by default;
-- least privilege is required;
-- source collection is explicitly scoped;
-- source input is treated as untrusted;
-- parsers are bounded;
-- operations have timeouts and resource limits;
-- secrets do not belong in Git;
-- raw sensitive customer source material does not belong in Git;
-- historical application records are not silently rewritten;
-- identity claims do not automatically become authorization;
-- calculated relationships retain their assumptions;
-- uncertainty remains visible;
-- software build identity is verifiable;
-- database integrity can be independently checked; and
-- compromise of a higher administrative trust boundary is stated rather than hidden.
+They do not necessarily require separate services or frameworks.
+
+Separation should exist where it improves understanding, testing, security, or maintainability.
 
 ---
 
-## Repository Direction
+## Git already remembers
 
-The repository is intentionally being rebuilt with a small active surface.
+Obsolete architecture, abandoned roadmaps, and historical process structures do not need to remain in the active project simply to preserve history.
 
-Expected structure:
+Git and `old-atlas` already provide that history.
+
+---
+
+# Code Migration From old-atlas
+
+Code should be migrated by **capability**, not by directory.
+
+Do not reason:
+
+```text
+old-atlas has this package
+therefore new Atlas needs this package
+```
+
+Instead ask:
+
+```text
+new Atlas requires capability X
+        ↓
+does old-atlas contain a simple,
+correct, understood implementation?
+        ↓
+yes
+        ↓
+bring forward the smallest useful portion
+plus its tests
+```
+
+Useful old implementation work should not be rewritten solely because it is old.
+
+It should be:
+
+1. understood;
+2. reviewed;
+3. simplified where necessary;
+4. tested;
+5. migrated in the smallest useful unit; and
+6. used only if the new Atlas currently needs it.
+
+Old architecture does not automatically become new architecture.
+
+---
+
+# Repository Structure
+
+The repository should remain small while Atlas is being rebuilt.
+
+Directories are created when implementation requires them.
+
+An early structure may be as small as:
 
 ```text
 .
-├── cmd/                    Executables
-├── internal/               Core Atlas implementation
-├── modules/                Source/vendor workstreams
+├── cmd/
+│   └── atlas/
+├── internal/
 │   ├── cisco/
-│   ├── fortigate/
-│   └── bloodhound/
-├── sql/                    PostgreSQL schema and migrations
-├── integrations/           External-system adapters
-├── diagrams/               Diagram generation/support
-├── docs/                   Necessary technical documentation
-├── assets/                 Project branding and README assets
+│   └── records/
+├── assets/
 ├── README.md
-├── ROADMAP.md
-├── SECURITY.md
 ├── LICENSE
+├── SECURITY.md
 └── go.mod
 ```
 
-Directories should be added when implementation requires them rather than created solely to satisfy a template.
+This is illustrative, not mandatory.
+
+As real capabilities appear, additional areas may be introduced.
+
+For example:
+
+```text
+internal/
+├── cisco/
+├── fortigate/
+├── records/
+├── model/
+└── postgres/
+```
+
+A generic source or module framework should not be created until multiple implementations demonstrate that it is needed.
+
+The repository structure should follow the implementation.
+
+The implementation should not be forced to follow a speculative repository structure.
 
 ---
 
-## Current Bootstrap State
+# Initial Development Direction
 
-This is a fresh repository.
+Atlas development should proceed through working capability rather than large vendor-numbered phases.
 
-Code from `old-atlas` will be reviewed and migrated selectively.
+A practical direction is:
 
-> **Nothing comes into the new Atlas merely because it existed in old Atlas. It comes across because the new Atlas needs it and the implementation still makes sense.**
+```text
+source
+   ↓
+faithful parsing
+   ↓
+source-backed records
+   ↓
+small infrastructure model
+   ↓
+correlation
+   ↓
+answer a useful question
+   ↓
+generate a view of the same model
+```
 
-Early migration priorities are expected to include useful portions of PostgreSQL foundations, source identity and history, Cisco parsing and tests, FortiGate parsing and tests, BloodHound source fidelity and persistence, bounded ingestion, source hashing and lineage, and adversarial test cases.
+The current Cisco work should prove this path first.
 
-Working code should not be rewritten merely for the sake of rewriting it. It should be brought forward, understood, simplified where appropriate, tested, and then used.
+For example, an early Atlas question may be:
 
----
+> **Where is this IP address?**
 
-## Pilot Direction
+Answering that may require Atlas to understand:
 
-The first controlled Atlas pilot is intended for a real, authorized environment where value can be measured against how infrastructure work is performed today.
+* device identity;
+* interfaces;
+* VLANs;
+* MAC observations;
+* ARP observations;
+* IP addressing;
+* subnets;
+* neighbor relationships; and
+* relevant source freshness.
 
-The pilot should help establish:
+Those requirements then drive implementation.
 
-- whether Atlas answers are correct;
-- whether uncertainty and missing information are represented truthfully;
-- whether Atlas reduces troubleshooting and investigation time;
-- whether hidden dependencies become visible;
-- whether generated diagrams are useful and current;
-- whether change understanding improves;
-- whether another qualified administrator can use the system without depending on one senior engineer's memory;
-- whether collection remains safe and low-impact; and
-- whether the system can be recovered and its history verified.
-
-The pilot is not intended to prove that Atlas knows everything.
-
-It is intended to prove that Atlas can provide trustworthy, useful infrastructure intelligence from the information it has.
-
----
-
-## Product Test
-
-Every significant Atlas feature should face the same question:
-
-> **Does this capability save a qualified operator from manually correlating multiple devices, interfaces, VLANs, routes, policies, command outputs, diagrams, identity records, monitoring screens, and documentation to reach the same conclusion?**
-
-Progress is not measured by parser count, dashboard count, phase count, document count, or raw record volume.
-
-Progress is measured by useful questions answered, correctness, visible uncertainty, time saved, dependencies understood, changes explained, operational burden avoided, and trust earned.
+The next question drives the next capability.
 
 ---
 
-## Guiding Statements
+# Product Test
+
+Every significant Atlas capability should face the same test:
+
+> **Does this save a qualified operator from manually correlating infrastructure information to reach the same conclusion?**
+
+Progress is not measured by:
+
+* parser count;
+* package count;
+* interface count;
+* service count;
+* dashboard count;
+* document count;
+* roadmap phase count; or
+* raw database record count.
+
+Progress is measured by:
+
+* useful questions answered;
+* correctness;
+* visible uncertainty;
+* time saved;
+* dependencies understood;
+* changes explained;
+* operational effort reduced; and
+* operator trust.
+
+---
+
+# Pilot Direction
+
+The first controlled Atlas pilot should validate the system against a real authorized environment.
+
+The pilot should determine whether:
+
+* Atlas answers are correct;
+* missing information is represented truthfully;
+* source information remains traceable;
+* troubleshooting time is reduced;
+* network diagrams remain useful and current;
+* hidden dependencies become visible;
+* collection is safe and low-impact;
+* another qualified administrator can understand the environment without relying on one person's memory;
+* the system remains maintainable; and
+* failures can be understood and recovered from.
+
+The pilot is not intended to prove Atlas knows everything.
+
+It is intended to prove that Atlas provides trustworthy and useful infrastructure intelligence from the information it has.
+
+---
+
+# Guiding Statements
 
 > **Truth first. Built for operators.**
 
-> **Collect. Correlate. Model. Explain.**
+> **Build the simplest correct thing.**
 
-> **Know. Understand. Explain.**
+> **Parse faithfully first. Correlate later. Derive last.**
 
-> **Summarize upward. Expand downward.**
+> **Infrastructure sources are inputs. Diagrams are outputs.**
 
-> **Atlas turns scattered infrastructure information into source-backed organizational knowledge.**
+> **Unknown is better than invented certainty.**
+
+> **Complexity must earn its place.**
+
+> **Atlas reconstructs the network so the operator does not have to.**
 
 ---
 
-## Historical Project
+# Historical Project
 
-The previous Atlas repository and development history are retained at:
+The previous Atlas implementation is retained at:
 
 [Iron-Signal-Systems/old-atlas](https://github.com/Iron-Signal-Systems/old-atlas)
 
-That repository is historical reference material and does not define the structure of this clean implementation.
+It is historical reference material.
+
+It does not define the architecture or repository structure of the current Atlas implementation.
 
 ---
 
-## License
+# Security
 
-No license terms are granted by this README.
+Atlas is designed to operate with a small, understandable attack surface and strong default trust boundaries.
 
-The applicable license will be defined in the repository `LICENSE` file when it is added.
+Core security principles include:
 
-Copyright © Iron Signal Systems.
+* read-only collection by default;
+* least-privilege access to infrastructure sources;
+* explicitly scoped collection;
+* all source input treated as untrusted;
+* bounded parsers and resource usage;
+* timeouts where appropriate;
+* conservative parsing and validation;
+* no secrets or unrestricted customer data committed to Git;
+* clear separation between collected facts and derived conclusions;
+* explicit handling of unknown, conflicting, or incomplete information;
+* straightforward code that can be reviewed and tested;
+* dependency and build review;
+* tested failure behavior; and
+* no silent modification of managed infrastructure.
+
+Atlas should prefer simple, reviewable security boundaries over unnecessary framework complexity.
+
+> **Simple code that can be understood, tested, and reviewed is itself a security property.**
+
+Atlas is currently **pre-alpha and not production ready**.
+
+Security behavior, interfaces, schemas, and implementation details may change before a supported release.
+
+Suspected vulnerabilities should **not** be reported through public GitHub issues.
+
+See [SECURITY.md](SECURITY.md) for reporting instructions and security scope.
+
+
+---
+
+# License
+
+Atlas is proprietary source-available software.
+
+See [LICENSE](LICENSE) for the applicable terms.
+
+Copyright © 2026 John Joseph Wood. All rights reserved.
